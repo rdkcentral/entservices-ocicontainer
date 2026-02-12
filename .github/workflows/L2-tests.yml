@@ -102,13 +102,6 @@ jobs:
           path: entservices-ocicontainer
           ref: feature/RDKEMW-13476
 
-      - name: Checkout entservices-deviceanddisplay
-        uses: actions/checkout@v3
-        with:
-          repository: rdkcentral/entservices-deviceanddisplay
-          path: entservices-deviceanddisplay
-          ref: develop
-         
       - name: Checkout entservices-testframework
         uses: actions/checkout@v3
         with:
