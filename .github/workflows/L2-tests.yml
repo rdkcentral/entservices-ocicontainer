@@ -88,19 +88,19 @@ jobs:
           path: ThunderTools
           ref: R4.4.3
 
-      - name: Checkout entservices-infra
+      - name: Checkout entservices-ocicontainer
         if: ${{ inputs.caller_source == 'local' }}
         uses: actions/checkout@v3
         with:
-          path: entservices-infra
+          path: entservices-ocicontainer
 
-      - name: Checkout entservices-infra-testframework
+      - name: Checkout entservices-ocicontainer-testframework
         if: ${{ inputs.caller_source == 'testframework' }}
         uses: actions/checkout@v3
         with:
-          repository: rdkcentral/entservices-infra
-          path: entservices-infra
-          ref: develop
+          repository: rdkcentral/entservices-ocicontainer
+          path: entservices-ocicontainer
+          ref: feature/RDKEMW-13476
 
       - name: Checkout entservices-deviceanddisplay
         uses: actions/checkout@v3
@@ -126,16 +126,17 @@ jobs:
           ref: v1.15.0
 
       # Fetching only the required essos-resmgr.h file from the Westeros repo to avoid full repo clone and to remove header file dependency
-      - name: Fetch only essos-resmgr.h from Westeros repo using sparse-checkout
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/westeros-minimal
-          cd $GITHUB_WORKSPACE/westeros-minimal
-          git init
-          git remote add origin https://code.rdkcentral.com/r/components/opensource/westeros
-          git config core.sparseCheckout true
-          git pull --depth=1 origin master
-          mkdir -p $GITHUB_WORKSPACE/entservices-infra/ResourceManager
-          cp essos/essos-resmgr.h $GITHUB_WORKSPACE/entservices-infra/ResourceManager/
+      # Note: OCIContainer plugin does not require this file, keeping for reference only
+      # - name: Fetch only essos-resmgr.h from Westeros repo using sparse-checkout
+      #   run: |
+      #     mkdir -p $GITHUB_WORKSPACE/westeros-minimal
+      #     cd $GITHUB_WORKSPACE/westeros-minimal
+      #     git init
+      #     git remote add origin https://code.rdkcentral.com/r/components/opensource/westeros
+      #     git config core.sparseCheckout true
+      #     git pull --depth=1 origin master
+      #     mkdir -p $GITHUB_WORKSPACE/entservices-ocicontainer/ResourceManager
+      #     cp essos/essos-resmgr.h $GITHUB_WORKSPACE/entservices-ocicontainer/ResourceManager/
 
       - name: Apply patches ThunderTools
         run: |  
@@ -415,11 +416,11 @@ jobs:
           &&
           cmake --install build/entservices-deviceanddisplay
 
-      - name: Build entservices-infra
+      - name: Build entservices-ocicontainer
         run: >
           cmake
-          -S "$GITHUB_WORKSPACE/entservices-infra"
-          -B build/entservices-infra
+          -S "$GITHUB_WORKSPACE/entservices-ocicontainer"
+          -B build/entservices-ocicontainer
           -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
@@ -491,31 +492,17 @@ jobs:
           -DCMAKE_DISABLE_FIND_PACKAGE_Udev=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_RFC=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_RBus=ON
-          -DPLUGIN_MIGRATION=ON
-          -DPLUGIN_TELEMETRY=ON
-          -DPLUGIN_USERSETTINGS=ON
-          -DPLUGIN_PERSISTENTSTORE=ON
-          -DPLUGIN_SHAREDSTORAGE=ON
-          -DPLUGIN_RESOURCEMANAGER=ON
-          -DPLUGIN_CLOUDSTORE=ON
-          -DPLUGIN_USBDEVICE=ON
-          -DPLUGIN_USB_MASS_STORAGE=ON
-          -DPLUGIN_LIFECYCLEMANAGER=OFF
-          -DPLUGIN_APPMANAGER=OFF
-          -DPLUGIN_ANALYTICS=ON
-          -DPLUGIN_ANALYTICS_BACKEND_LIBRARY_NAME="libWPEFrameworkAnalyticsBackendMock.so"
-          -DPLUGIN_ANALYTICS_EVENTS_MAP="/tmp/AnalyticsEventsMap.json"
+          -DPLUGIN_OCICONTAINER=ON
           -DUSE_THUNDER_R4=ON
           -DPLUGIN_L2Tests=ON
           -DRDK_SERVICE_L2_TEST=ON
-          -DPLUGIN_STORAGE_MANAGER=ON
-          -DPLUGIN_OCICONTAINER=ON
+          
           -DDS_FOUND=ON
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           &&
-          cmake --build build/entservices-infra -j6
+          cmake --build build/entservices-ocicontainer -j6
           &&
-          cmake --install build/entservices-infra
+          cmake --install build/entservices-ocicontainer
 
       - name: Build entservices-testframework
         run: >
@@ -578,23 +565,8 @@ jobs:
           -DCMAKE_DISABLE_FIND_PACKAGE_Udev=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_RFC=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_RBus=ON
-          -DPLUGIN_TELEMETRY=ON
-          -DPLUGIN_USERSETTINGS=ON
-          -DPLUGIN_PERSISTENTSTORE=ON
-          -DPLUGIN_RESOURCEMANAGER=ON
-          -DPLUGIN_SHAREDSTORAGE=ON
-          -DPLUGIN_CLOUDSTORE=ON
-          -DPLUGIN_USBDEVICE=ON
-          -DPLUGIN_USB_MASS_STORAGE=ON
-          -DPLUGIN_ANALYTICS=ON
-          -DPLUGIN_ANALYTICS_BACKEND_LIBRARY_NAME="libWPEFrameworkAnalyticsBackendMock.so"
-          -DPLUGIN_ANALYTICS_EVENTS_MAP="/tmp/AnalyticsEventsMap.json"
-          -DPLUGIN_LIFECYCLEMANAGER=OFF
-          -DPLUGIN_APPMANAGER=OFF
-          -DPLUGIN_AVINPUT=OFF
-          -DPLUGIN_AVOUTPUT=OFF
+          -DPLUGIN_OCICONTAINER=ON
           -DAVOUTPUT_TV=OFF
-          -DPLUGIN_STORAGE_MANAGER=ON
           -DUSE_THUNDER_R4=ON
           -DPLUGIN_L2Tests=ON
           -DRDK_SERVICE_L2_TEST=ON
@@ -734,12 +706,12 @@ jobs:
           &&
           lcov -c
           -o coverage.info
-          -d build/entservices-infra
+          -d build/entservices-ocicontainer
           &&
           lcov
           -r coverage.info
           '/usr/include/*'
-          '*/build/entservices-infra/_deps/*'
+          '*/build/entservices-ocicontainer/_deps/*'
           '*/build/entservices-deviceanddisplay/_deps/*'
           '*/build/entservices-entservices-testframework/_deps/*'
           '*/install/usr/include/*'
@@ -754,14 +726,14 @@ jobs:
           &&
           genhtml
           -o coverage
-          -t "entservices-infra coverage"
+          -t "entservices-ocicontainer coverage"
           filtered_coverage.info
 
       - name: Upload artifacts
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-L2-infra
+          name: artifacts-L2-ocicontainer
           path: |
             coverage/
             valgrind_log
