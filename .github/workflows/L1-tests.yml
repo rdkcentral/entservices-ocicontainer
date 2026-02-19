@@ -698,7 +698,7 @@ jobs:
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-L1-infra
+          name: artifacts-L1-ocicontainer
           path: |
             coverage/
             valgrind_log
