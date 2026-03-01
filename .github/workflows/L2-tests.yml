@@ -107,7 +107,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: Migration_IN
+          ref: feature/RDKEMW-12937_1 
           token: ${{ secrets.RDKCM_RDKE }}
 
       - name: Checkout googletest
@@ -117,19 +117,6 @@ jobs:
           repository: google/googletest
           path: googletest
           ref: v1.15.0
-
-      # Fetching only the required essos-resmgr.h file from the Westeros repo to avoid full repo clone and to remove header file dependency
-      # Note: OCIContainer plugin does not require this file, keeping for reference only
-      # - name: Fetch only essos-resmgr.h from Westeros repo using sparse-checkout
-      #   run: |
-      #     mkdir -p $GITHUB_WORKSPACE/westeros-minimal
-      #     cd $GITHUB_WORKSPACE/westeros-minimal
-      #     git init
-      #     git remote add origin https://code.rdkcentral.com/r/components/opensource/westeros
-      #     git config core.sparseCheckout true
-      #     git pull --depth=1 origin master
-      #     mkdir -p $GITHUB_WORKSPACE/entservices-ocicontainer/ResourceManager
-      #     cp essos/essos-resmgr.h $GITHUB_WORKSPACE/entservices-ocicontainer/ResourceManager/
 
       - name: Apply patches ThunderTools
         run: |  
@@ -159,6 +146,7 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Jsonrpc_dynamic_error_handling.patch
+          patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Increase_Timout_For_L2Tests_Plugin.patch
           cd -
       - name: Build Thunder
         run: >
@@ -190,6 +178,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/entservices-apis
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
+          patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/add-l2tests-interface.patch
           cd -    
 
       - name: Build entservices-apis
@@ -323,6 +312,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           -DCMAKE_CXX_FLAGS="
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers
+          -I $GITHUB_WORKSPACE/entservices-ocicontainer/helpers
           -I $GITHUB_WORKSPACE/install/usr/include"
           &&
           cmake --build build/mocks -j8
@@ -411,7 +401,7 @@ jobs:
           -DRDK_SERVICE_L2_TEST=ON
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           &&
-          cmake --build build/entservices-ocicontainer -j6
+          cmake --build build/entservices-ocicontainer 
           &&
           cmake --install build/entservices-ocicontainer
 
@@ -477,7 +467,6 @@ jobs:
           -DCMAKE_DISABLE_FIND_PACKAGE_RFC=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_RBus=ON
           -DPLUGIN_OCICONTAINER=ON
-          -DAVOUTPUT_TV=OFF
           -DUSE_THUNDER_R4=ON
           -DPLUGIN_L2Tests=ON
           -DRDK_SERVICE_L2_TEST=ON
@@ -586,6 +575,7 @@ jobs:
           $GITHUB_WORKSPACE/entservices-testframework/Tests/L2Tests/pact/install-verifier-cli.sh
 
       - name: Run unit tests without valgrind
+        if: ${{!env.ACT && inputs.caller_source != 'testframework'  }}
         run: >
           PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
           LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
@@ -610,7 +600,7 @@ jobs:
           rm -rf $(pwd)/rdkL2TestResults.json
 
       - name: Generate coverage
-        if: ${{ matrix.coverage == 'with-coverage' && !env.ACT }}
+        if: ${{ matrix.coverage == 'with-coverage' && !env.ACT && inputs.caller_source != 'testframework'}}
         run: >
           cp $GITHUB_WORKSPACE/entservices-testframework/Tests/L2Tests/.lcovrc_l2 ~/.lcovrc
           &&
@@ -621,7 +611,6 @@ jobs:
           lcov
           -r coverage.info
           '/usr/include/*'
-          '*/build/entservices-ocicontainer/_deps/*'
           '*/build/entservices-ocicontainer/_deps/*'
           '*/build/entservices-entservices-testframework/_deps/*'
           '*/install/usr/include/*'
