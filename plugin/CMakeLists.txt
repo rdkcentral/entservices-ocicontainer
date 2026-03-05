@@ -57,6 +57,8 @@ set_target_properties(${MODULE_NAME} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES)
 
+target_compile_options(${MODULE_NAME} PRIVATE -Wno-error=format)
+
 set_source_files_properties(OCIContainer.cpp PROPERTIES COMPILE_FLAGS "-fexceptions")
 
 list(APPEND CMAKE_MODULE_PATH

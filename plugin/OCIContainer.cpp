@@ -18,6 +18,7 @@
 **/
 
 #include "OCIContainer.h"
+#include <stdio.h>
 
 const string WPEFramework::Plugin::OCIContainer::SERVICE_NAME = "org.rdk.OCIContainer";
 
@@ -91,6 +92,7 @@ namespace WPEFramework
                Deinitialize(service);
             }
 
+            printf("OCIContainer::Initialize: %s\n");
             return retStatus;
         }
 
