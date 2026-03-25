@@ -60,13 +60,19 @@ namespace Plugin
 
                     void Activated(RPC::IRemoteConnection*) override
                     {
-                        LOGINFO("OCIContainer Notification Activated");
+                        if(_parent._connectionId == connection->Id())
+                        {
+                            LOGINFO("OCIContainer Notification Activated");
+                        }
                     }
 
                     void Deactivated(RPC::IRemoteConnection *connection) override
                     {
-                        LOGINFO("OCIContainer Notification Deactivated");
-                        _parent.Deactivated(connection);
+                        if(_parent._connectionId == connection->Id())
+                        {
+                            LOGINFO("OCIContainer Notification Deactivated");
+                            _parent.Deactivated(connection);
+                        }
                     }
 
                     void OnContainerStarted(const string& containerId, const string& name) override
