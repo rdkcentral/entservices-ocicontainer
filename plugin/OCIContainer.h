@@ -60,7 +60,7 @@ namespace Plugin
 
                     void Activated(RPC::IRemoteConnection *connection) override
                     {
-                        if(_parent._connectionId == connection->Id())
+                        if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Activated");
                         }
@@ -68,7 +68,7 @@ namespace Plugin
 
                     void Deactivated(RPC::IRemoteConnection *connection) override
                     {
-                        if(_parent._connectionId == connection->Id())
+                        if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Deactivated");
                             _parent.Deactivated(connection);
