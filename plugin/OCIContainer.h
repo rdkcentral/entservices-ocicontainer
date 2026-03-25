@@ -60,10 +60,12 @@ namespace Plugin
 
                     void Activated(RPC::IRemoteConnection*) override
                     {
+                        LOGINFO("OCIContainer Notification Activated");
                     }
 
                     void Deactivated(RPC::IRemoteConnection *connection) override
                     {
+                        LOGINFO("OCIContainer Notification Deactivated");
                         _parent.Deactivated(connection);
                     }
 
