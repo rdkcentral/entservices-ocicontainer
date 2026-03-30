@@ -63,7 +63,7 @@ namespace Plugin
                         if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Activated");
-                            LOGINFO("OCIContainer Notification Activated with Id: %u", connection->Id());
+                            LOGINFO("OCIContainer Notification Activated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                         }
                     }
 
@@ -72,7 +72,7 @@ namespace Plugin
                         if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Deactivated");
-                            LOGINFO("OCIContainer Notification Deactivated with Id: %u", connection->Id());
+                            LOGINFO("OCIContainer Notification Deactivated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                             _parent.Deactivated(connection);
                         }
                     }
