@@ -60,19 +60,19 @@ namespace Plugin
 
                     void Activated(RPC::IRemoteConnection *connection) override
                     {
+                        LOGINFO("OCIContainer Notification Activated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                         if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Activated");
-                            LOGINFO("OCIContainer Notification Activated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                         }
                     }
 
                     void Deactivated(RPC::IRemoteConnection *connection) override
                     {
+                        LOGINFO("OCIContainer Notification Deactivated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                         if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Deactivated");
-                            LOGINFO("OCIContainer Notification Deactivated - Connection Id: %u, Parent Connection Id: %u", connection->Id(), _parent.mConnectionId);
                             _parent.Deactivated(connection);
                         }
                     }
