@@ -71,8 +71,8 @@ namespace Plugin
                         if(_parent.mConnectionId == connection->Id())
                         {
                             LOGINFO("OCIContainer Notification Deactivated");
-                            _parent.Deactivated(connection);
                         }
+                        _parent.Deactivated(connection);
                     }
 
                     void OnContainerStarted(const string& containerId, const string& name) override
