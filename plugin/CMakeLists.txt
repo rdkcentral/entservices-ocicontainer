@@ -27,6 +27,7 @@ find_package(${NAMESPACE}Plugins REQUIRED)
 find_package(${NAMESPACE}Definitions REQUIRED)
 find_package(CompileSettingsDebug CONFIG REQUIRED)
 find_package(Dobby CONFIG)
+find_package(${NAMESPACE}Helpers REQUIRED)
 
 # Temporary fix to get defines in Dobby. Will be removed later.
 add_definitions( -DRDK )
@@ -80,7 +81,6 @@ find_package_handle_standard_args(
 
 target_include_directories(${MODULE_NAME}
         PRIVATE
-        ../helpers
         ${OMI_CLIENT_INCLUDE_DIRS}
 )
 
@@ -92,6 +92,7 @@ target_link_libraries(${MODULE_NAME}
         ${NAMESPACE}Definitions::${NAMESPACE}Definitions
         ${SYSTEMD_LIBRARIES}
         ${OMI_CLIENT_LIBRARIES}
+        ${NAMESPACE}::${NAMESPACE}Helpers
 )
 
 if (RDK_SERVICE_L2_TEST)
