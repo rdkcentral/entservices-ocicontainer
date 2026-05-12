@@ -102,7 +102,7 @@ macro(add_plugin_test plugin_name test_files)
 endmacro()
 
 # PLUGIN_OCICONTAINER
-set (OCICONTAINER_INC ${CMAKE_SOURCE_DIR}/../entservices-ocicontainer/plugin ${CMAKE_SOURCE_DIR}/../entservices-helpers/helpers)
+set (OCICONTAINER_INC ${CMAKE_SOURCE_DIR}/../entservices-ocicontainer/plugin ${CMAKE_SOURCE_DIR}/../entservices-ocicontainer/plugin/stubs ${CMAKE_SOURCE_DIR}/../entservices-helpers/helpers)
 set (OCICONTAINER_LIBS ${NAMESPACE}OCIContainer)
 add_plugin_test_ex(PLUGIN_OCICONTAINER tests/test_OCIContainer.cpp "${OCICONTAINER_INC}" "${OCICONTAINER_LIBS}")
 
