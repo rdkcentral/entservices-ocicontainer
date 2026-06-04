@@ -28,6 +28,8 @@
 
 using namespace WPEFramework;
 using ::testing::NiceMock;
+using omi::OmiProxy;
+using omi::MockOmiProxy;
 
 class OCIContainerTest : public ::testing::Test {
 protected:
@@ -50,7 +52,7 @@ protected:
     NiceMock<ServiceMock> service;
     DobbyProxyMock    *p_dobbymock = nullptr ;
     IpcServiceMock    *p_ipcservicemock = nullptr ;
-    OmiProxyMock      *p_omimock = nullptr ;
+    MockOmiProxy      *p_omimock = nullptr ;
 
     OCIContainerInitializedTest()
         : OCIContainerTest()
@@ -61,7 +63,7 @@ protected:
         p_ipcservicemock  = new NiceMock <IpcServiceMock>;
         IpcService::setImpl(p_ipcservicemock);
 
-        p_omimock  = new NiceMock <OmiProxyMock>;
+        p_omimock  = new NiceMock <MockOmiProxy>;
         OmiProxy::setImpl(p_omimock);
 
         EXPECT_CALL(*p_ipcservicemock, start())
