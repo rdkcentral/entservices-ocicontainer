@@ -100,14 +100,14 @@ jobs:
         with:
           repository: rdkcentral/entservices-ocicontainer
           path: entservices-ocicontainer
-          ref: feature/RDKEMW-18404-OCI
+          ref: develop
 
       - name: Checkout entservices-testframework
         uses: actions/checkout@v3
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: 1.0.12
+          ref: 1.0.14
 
       - name: Checkout googletest
         if: steps.cache.outputs.cache-hit != 'true'
