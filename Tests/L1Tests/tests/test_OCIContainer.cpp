@@ -22,14 +22,11 @@
 #include "OCIContainer.h"
 #include "ServiceMock.h"
 #include "DobbyMock.h"
-#include "OmiMock.h"
 #include "FactoriesImplementation.h"
 #include "ThunderPortability.h"
 
 using namespace WPEFramework;
 using ::testing::NiceMock;
-using omi::OmiProxy;
-using omi::MockOmiProxy;
 
 class OCIContainerTest : public ::testing::Test {
 protected:
@@ -52,7 +49,6 @@ protected:
     NiceMock<ServiceMock> service;
     DobbyProxyMock    *p_dobbymock = nullptr ;
     IpcServiceMock    *p_ipcservicemock = nullptr ;
-    MockOmiProxy      *p_omimock = nullptr ;
 
     OCIContainerInitializedTest()
         : OCIContainerTest()
@@ -63,17 +59,11 @@ protected:
         p_ipcservicemock  = new NiceMock <IpcServiceMock>;
         IpcService::setImpl(p_ipcservicemock);
 
-        p_omimock  = new NiceMock <MockOmiProxy>;
-        OmiProxy::setImpl(p_omimock);
-
         EXPECT_CALL(*p_ipcservicemock, start())
             .WillOnce(::testing::Return(true));
 
         EXPECT_CALL(*p_dobbymock, registerListener(::testing::_, ::testing::_))
             .WillOnce(::testing::Return(5));
-
-        EXPECT_CALL(*p_omimock, registerListener(::testing::_, ::testing::_))
-            .WillOnce(::testing::Return(6));
 
         EXPECT_EQ(string(""), plugin->Initialize(&service));
     }
@@ -81,9 +71,6 @@ protected:
     virtual ~OCIContainerInitializedTest() override
     {
         EXPECT_CALL(*p_dobbymock, unregisterListener(5))
-            .WillOnce(::testing::Return());
-
-        EXPECT_CALL(*p_omimock, unregisterListener(6))
             .WillOnce(::testing::Return());
 
         plugin->Deinitialize(&service);
@@ -98,12 +85,6 @@ protected:
         {
             delete p_ipcservicemock;
             p_ipcservicemock = nullptr;
-        }
-        OmiProxy::setImpl(nullptr);
-        if (p_omimock != nullptr)
-        {
-            delete p_omimock;
-            p_omimock = nullptr;
         }
     }
 };
