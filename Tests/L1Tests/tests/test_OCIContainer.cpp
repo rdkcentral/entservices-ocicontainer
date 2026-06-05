@@ -73,44 +73,34 @@ protected:
         EXPECT_CALL(*p_omimock, registerListener(::testing::_, ::testing::_))
             .WillOnce(::testing::Return(6));
 
-        // Allow unregisterListener to be called any number of times during cleanup
-        EXPECT_CALL(*p_dobbymock, unregisterListener(::testing::_))
-            .Times(::testing::AtLeast(0));
-        
-        EXPECT_CALL(*p_omimock, unregisterListener(::testing::_))
-            .Times(::testing::AtLeast(0));
-
         EXPECT_EQ(string(""), plugin->Initialize(&service));
     }
 
     virtual ~OCIContainerInitializedTest() override
     {
+        // Expect unregisterListener calls during deinitialize
+        EXPECT_CALL(*p_dobbymock, unregisterListener(5))
+            .Times(1);
+        
+        EXPECT_CALL(*p_omimock, unregisterListener(6))
+            .Times(1);
+
         plugin->Deinitialize(&service);
         
-        // Clean up the plugin object before deleting mocks
-        plugin.Release();
-        
-        // Reset mock implementations before deleting
+        // Reset mock implementations after deinitialize completes
         DobbyProxy::setImpl(nullptr);
         IpcService::setImpl(nullptr);
         omi::OmiProxy::setImpl(nullptr);
         
         // Delete mocks
-        if (p_dobbymock != nullptr)
-        {
-            delete p_dobbymock;
-            p_dobbymock = nullptr;
-        }
-        if (p_ipcservicemock != nullptr)
-        {
-            delete p_ipcservicemock;
-            p_ipcservicemock = nullptr;
-        }
-        if (p_omimock != nullptr)
-        {
-            delete p_omimock;
-            p_omimock = nullptr;
-        }
+        delete p_dobbymock;
+        p_dobbymock = nullptr;
+        
+        delete p_ipcservicemock;
+        p_ipcservicemock = nullptr;
+        
+        delete p_omimock;
+        p_omimock = nullptr;
     }
 };
 
