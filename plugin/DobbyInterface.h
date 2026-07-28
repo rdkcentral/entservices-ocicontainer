@@ -59,7 +59,7 @@ namespace Plugin
             bool unmount(const string& containerId, const string& target, string& errorReason);
         
             void onContainerStarted(int32_t descriptor, const std::string& name);
-            void onContainerStopped(int32_t descriptor, const std::string& name);
+            void onContainerStopped(int32_t descriptor, const std::string& name, int32_t exitCode);
             void onContainerStateChanged(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState dobbyContainerState);
             void onVerityFailed(const std::string& name);
         
@@ -70,7 +70,7 @@ namespace Plugin
             std::shared_ptr<AI_IPC::IIpcService> mIpcService; // Ipc Service instance
             int GetContainerDescriptorFromId(const std::string& containerId);
             const std::string GetContainerIdFromDescriptor(const int descriptor);
-            static void stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, const void* _this);
+            static void stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this);
             static void omiErrorListener(const std::string& id, omi::IOmiProxy::ErrorType err, const void* _this);
             std::shared_ptr<omi::IOmiProxy> mOmiProxy;
             IEventHandler* mEventHandler;

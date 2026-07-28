@@ -61,8 +61,8 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
     // calls to the Dobby daemon
     mDobbyProxy = std::make_shared<DobbyProxy>(mIpcService, DOBBY_SERVICE, DOBBY_OBJECT);
 
-    // Register a state change event listener
-    mEventListenerId = mDobbyProxy->registerListener(stateListener, static_cast<const void*>(this));
+    // Register using the WithStatus listener to receive exit code alongside stop events.
+    mEventListenerId = mDobbyProxy->registerListenerWithStatus(stateListener, static_cast<const void*>(this));
 
     mOmiProxy = std::make_shared<omi::OmiProxy>();
 
@@ -74,7 +74,7 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
 void DobbyInterface::terminate()
 {
     mEventHandler = nullptr;
-    mDobbyProxy->unregisterListener(mEventListenerId);
+    mDobbyProxy->unregisterListenerWithStatus(mEventListenerId);
     mOmiProxy->unregisterListener(mOmiListenerId);
 }
 
@@ -663,7 +663,7 @@ void DobbyInterface::onContainerStarted(int32_t descriptor, const std::string& n
  * @param descriptor    Container descriptor.
  * @param name          Container name.
  */
-void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& name)
+void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& name, int32_t exitCode)
 {
 
     if (!mOmiProxy->umountCryptedBundle(name))
@@ -680,6 +680,7 @@ void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& n
     params["name"] = name;
     string containerId = GetContainerIdFromDescriptor(descriptor);
     params["containerId"] = (containerId.empty()) ? name : containerId;
+    params["exitCode"] = exitCode;
 
     if (mEventHandler)
     {
@@ -803,7 +804,7 @@ const std::string DobbyInterface::GetContainerIdFromDescriptor(const int descrip
  * @param state      Container state
  * @param _this      Callback parameters, or in this case, the pointer to 'this'
  */
-void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, const void* _this)
+void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this)
 {
     // Cast const void* back to DobbyInterface* type to get 'this'
     DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
@@ -816,7 +817,7 @@ void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, 
     }
     else if (state == IDobbyProxyEvents::ContainerState::Stopped)
     {
-        __this->onContainerStopped(descriptor, name);
+        __this->onContainerStopped(descriptor, name, exitCode);
     }
     else
     {

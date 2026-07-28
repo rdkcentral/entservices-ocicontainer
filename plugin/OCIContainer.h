@@ -81,10 +81,10 @@ namespace Plugin
                         Exchange::JOCIContainer::Event::OnContainerStarted(_parent, containerId, name);
                     }
 
-                    void OnContainerStopped(const string& containerId, const string& name) override
+                    void OnContainerStopped(const string& containerId, const string& name, int32_t exitCode) override
                     {
                         LOGINFO("OnContainerStopped");
-                        Exchange::JOCIContainer::Event::OnContainerStopped(_parent, containerId, name);
+                        Exchange::JOCIContainer::Event::OnContainerStopped(_parent, containerId, name, exitCode);
                     }
 
                     void OnContainerFailed(const string& containerId, const string& name, uint32_t error) override
