@@ -116,6 +116,11 @@ namespace WPEFramework
              {
                  error = params["errorCode"].Number();
              }
+             int32_t exitCode = -1;
+             if(params.HasLabel("exitCode"))
+             {
+                 exitCode = static_cast<int32_t>(params["exitCode"].Number());
+             }
              switch(event)
              {
                  case OCICONTAINER_EVENT_CONTAINER_STARTED:
@@ -131,7 +136,7 @@ namespace WPEFramework
                     while (index != mOCIContainerNotification.end())
                     {
                          if (*index != nullptr) {
-                             (*index)->OnContainerStopped(containerId, name);
+                             (*index)->OnContainerStopped(containerId, name, exitCode);
                          }
                          ++index;
                     }
