@@ -61,8 +61,11 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
     // calls to the Dobby daemon
     mDobbyProxy = std::make_shared<DobbyProxy>(mIpcService, DOBBY_SERVICE, DOBBY_OBJECT);
 
-    // Register a state change event listener
-    mEventListenerId = mDobbyProxy->registerListener(stateListener, static_cast<const void*>(this));
+    // Register using the standard listener for ContainerStarted (and other non-stop) events.
+    mStandardListenerId = mDobbyProxy->registerListener(stateListenerStandard, static_cast<const void*>(this));
+
+    // Register using the WithStatus listener to receive exit code alongside stop events.
+    mEventListenerId = mDobbyProxy->registerListenerWithStatus(stateListener, static_cast<const void*>(this));
 
     mOmiProxy = std::make_shared<omi::OmiProxy>();
 
@@ -74,7 +77,8 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
 void DobbyInterface::terminate()
 {
     mEventHandler = nullptr;
-    mDobbyProxy->unregisterListener(mEventListenerId);
+    mDobbyProxy->unregisterListener(mStandardListenerId);
+    mDobbyProxy->unregisterListenerWithStatus(mEventListenerId);
     mOmiProxy->unregisterListener(mOmiListenerId);
 }
 
@@ -663,7 +667,7 @@ void DobbyInterface::onContainerStarted(int32_t descriptor, const std::string& n
  * @param descriptor    Container descriptor.
  * @param name          Container name.
  */
-void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& name)
+void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& name, int32_t exitCode)
 {
 
     if (!mOmiProxy->umountCryptedBundle(name))
@@ -680,6 +684,7 @@ void DobbyInterface::onContainerStopped(int32_t descriptor, const std::string& n
     params["name"] = name;
     string containerId = GetContainerIdFromDescriptor(descriptor);
     params["containerId"] = (containerId.empty()) ? name : containerId;
+    params["exitCode"] = exitCode;
 
     if (mEventHandler)
     {
@@ -803,25 +808,27 @@ const std::string DobbyInterface::GetContainerIdFromDescriptor(const int descrip
  * @param state      Container state
  * @param _this      Callback parameters, or in this case, the pointer to 'this'
  */
-void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, const void* _this)
+void DobbyInterface::stateListenerStandard(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, const void* _this)
+{
+    DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
+
+    if (state == IDobbyProxyEvents::ContainerState::Running)
+    {
+        __this->onContainerStateChanged(descriptor, name, state);
+        __this->onContainerStarted(descriptor, name);
+    }
+    // ContainerStopped is handled by stateListener (WithStatus) which fires
+    // first (STOPPED_WITH_STATUS precedes STOPPED) and carries the exit code.
+}
+
+void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this)
 {
     // Cast const void* back to DobbyInterface* type to get 'this'
     DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
 
+    // This listener fires only for STOPPED_WITH_STATUS events (state is always Stopped).
     __this->onContainerStateChanged(descriptor, name, state);
-
-    if (state == IDobbyProxyEvents::ContainerState::Running)
-    {
-        __this->onContainerStarted(descriptor, name);
-    }
-    else if (state == IDobbyProxyEvents::ContainerState::Stopped)
-    {
-        __this->onContainerStopped(descriptor, name);
-    }
-    else
-    {
-        LOGINFO("Received an unknown state event for container '%s'.", name.c_str());
-    }
+    __this->onContainerStopped(descriptor, name, exitCode);
 }
 
 /**

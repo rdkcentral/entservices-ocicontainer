@@ -92,13 +92,14 @@ public:
         m_condition_variable.notify_one();
     }
 
-    void OnContainerStopped(const string& containerId, const string& name) override
+    void OnContainerStopped(const string& containerId, const string& name, int32_t exitCode) override
     {
         TEST_LOG("OnContainerStopped event triggered ***\n");
         std::unique_lock<std::mutex> lock(m_mutex);
 
         TEST_LOG("OnContainerStopped received (CONTAINER ID): %s\n", containerId.c_str());
         TEST_LOG("OnContainerStopped received (NAME): %s\n", name.c_str());
+        TEST_LOG("OnContainerStopped received (EXIT CODE): %d\n", exitCode);
         /* Notify the requester thread. */
         m_event_signalled |= ON_CONTAINER_STOPPED;
         m_condition_variable.notify_one();
