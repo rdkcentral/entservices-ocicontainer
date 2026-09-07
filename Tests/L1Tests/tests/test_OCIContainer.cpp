@@ -65,12 +65,18 @@ protected:
         EXPECT_CALL(*p_dobbymock, registerListener(::testing::_, ::testing::_))
             .WillOnce(::testing::Return(5));
 
+        EXPECT_CALL(*p_dobbymock, registerListenerWithStatus(::testing::_, ::testing::_))
+            .WillOnce(::testing::Return(6));
+
         EXPECT_EQ(string(""), plugin->Initialize(&service));
     }
 
     virtual ~OCIContainerInitializedTest() override
     {
         EXPECT_CALL(*p_dobbymock, unregisterListener(5))
+            .WillOnce(::testing::Return());
+
+        EXPECT_CALL(*p_dobbymock, unregisterListenerWithStatus(6))
             .WillOnce(::testing::Return());
 
         plugin->Deinitialize(&service);
