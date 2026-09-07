@@ -22,6 +22,7 @@
 #include "OCIContainer.h"
 #include "ServiceMock.h"
 #include "DobbyMock.h"
+#include "OmiMock.h"
 #include "FactoriesImplementation.h"
 #include "ThunderPortability.h"
 
@@ -49,6 +50,7 @@ protected:
     NiceMock<ServiceMock> service;
     DobbyProxyMock    *p_dobbymock = nullptr ;
     IpcServiceMock    *p_ipcservicemock = nullptr ;
+    MockOmiProxy      *p_omiproxymock = nullptr ;
 
     OCIContainerInitializedTest()
         : OCIContainerTest()
@@ -59,6 +61,9 @@ protected:
         p_ipcservicemock  = new NiceMock <IpcServiceMock>;
         IpcService::setImpl(p_ipcservicemock);
 
+        p_omiproxymock  = new NiceMock <MockOmiProxy>;
+        omi::OmiProxy::setImpl(p_omiproxymock);
+
         EXPECT_CALL(*p_ipcservicemock, start())
             .WillOnce(::testing::Return(true));
 
@@ -67,6 +72,9 @@ protected:
 
         EXPECT_CALL(*p_dobbymock, registerListenerWithStatus(::testing::_, ::testing::_))
             .WillOnce(::testing::Return(6));
+
+        EXPECT_CALL(*p_omiproxymock, registerListener(::testing::_, ::testing::_))
+            .WillOnce(::testing::Return(7));
 
         EXPECT_EQ(string(""), plugin->Initialize(&service));
     }
@@ -77,6 +85,9 @@ protected:
             .WillOnce(::testing::Return());
 
         EXPECT_CALL(*p_dobbymock, unregisterListenerWithStatus(6))
+            .WillOnce(::testing::Return());
+
+        EXPECT_CALL(*p_omiproxymock, unregisterListener(7))
             .WillOnce(::testing::Return());
 
         plugin->Deinitialize(&service);
@@ -91,6 +102,12 @@ protected:
         {
             delete p_ipcservicemock;
             p_ipcservicemock = nullptr;
+        }
+        omi::OmiProxy::setImpl(nullptr);
+        if (p_omiproxymock != nullptr)
+        {
+            delete p_omiproxymock;
+            p_omiproxymock = nullptr;
         }
     }
 };
