@@ -50,6 +50,8 @@ protected:
         }
         virtual ~OCIContainerTest()
         {
+            // Stop and drain the pool before releasing so no queued job runs against torn-down fixture state.
+            workerPool->Stop();
             Core::IWorkerPool::Assign(nullptr);
             workerPool.Release();
         }
