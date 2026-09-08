@@ -25,6 +25,7 @@
 #include "OmiMock.h"
 #include "FactoriesImplementation.h"
 #include "ThunderPortability.h"
+#include "WorkerPoolImplementation.h"
 
 using namespace WPEFramework;
 using ::testing::NiceMock;
@@ -35,14 +36,23 @@ protected:
     Core::JSONRPC::Handler& handler;
     DECL_CORE_JSONRPC_CONX connection;
     string response;
+    Core::ProxyType<WorkerPoolImplementation> workerPool;
 
     OCIContainerTest()
         : plugin(Core::ProxyType<Plugin::OCIContainer>::Create())
         , handler(*(plugin))
         , INIT_CONX(1, 0)
+        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
+              2, Core::Thread::DefaultStackSize(), 16))
         {
+            Core::IWorkerPool::Assign(&(*workerPool));
+            workerPool->Run();
         }
-        virtual ~OCIContainerTest() = default;
+        virtual ~OCIContainerTest()
+        {
+            Core::IWorkerPool::Assign(nullptr);
+            workerPool.Release();
+        }
 };
 
 class OCIContainerInitializedTest : public OCIContainerTest {
