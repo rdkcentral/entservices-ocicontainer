@@ -124,7 +124,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: 2.0.0
+          ref: topic/RDKEMW-23866
 
       - name: Checkout entservices-ocicontainer
         if: ${{ inputs.caller_source == 'local' }}
@@ -138,7 +138,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-ocicontainer
           path: entservices-ocicontainer
-          ref: feature/RDKEMW-18404-OCI
+          ref: topic/RDKEMW-23866
 
       - name: Checkout googletest
         uses: actions/checkout@v3

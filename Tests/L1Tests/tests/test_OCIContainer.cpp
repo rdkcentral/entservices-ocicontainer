@@ -22,8 +22,10 @@
 #include "OCIContainer.h"
 #include "ServiceMock.h"
 #include "DobbyMock.h"
+#include "OmiMock.h"
 #include "FactoriesImplementation.h"
 #include "ThunderPortability.h"
+#include "WorkerPoolImplementation.h"
 
 using namespace WPEFramework;
 using ::testing::NiceMock;
@@ -34,14 +36,25 @@ protected:
     Core::JSONRPC::Handler& handler;
     DECL_CORE_JSONRPC_CONX connection;
     string response;
+    Core::ProxyType<WorkerPoolImplementation> workerPool;
 
     OCIContainerTest()
         : plugin(Core::ProxyType<Plugin::OCIContainer>::Create())
         , handler(*(plugin))
         , INIT_CONX(1, 0)
+        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
+              2, Core::Thread::DefaultStackSize(), 16))
         {
+            Core::IWorkerPool::Assign(&(*workerPool));
+            workerPool->Run();
         }
-        virtual ~OCIContainerTest() = default;
+        virtual ~OCIContainerTest()
+        {
+            // Stop and drain the pool before releasing so no queued job runs against torn-down fixture state.
+            workerPool->Stop();
+            Core::IWorkerPool::Assign(nullptr);
+            workerPool.Release();
+        }
 };
 
 class OCIContainerInitializedTest : public OCIContainerTest {
@@ -49,6 +62,7 @@ protected:
     NiceMock<ServiceMock> service;
     DobbyProxyMock    *p_dobbymock = nullptr ;
     IpcServiceMock    *p_ipcservicemock = nullptr ;
+    MockOmiProxy      *p_omiproxymock = nullptr ;
 
     OCIContainerInitializedTest()
         : OCIContainerTest()
@@ -59,11 +73,20 @@ protected:
         p_ipcservicemock  = new NiceMock <IpcServiceMock>;
         IpcService::setImpl(p_ipcservicemock);
 
+        p_omiproxymock  = new NiceMock <MockOmiProxy>;
+        omi::OmiProxy::setImpl(p_omiproxymock);
+
         EXPECT_CALL(*p_ipcservicemock, start())
             .WillOnce(::testing::Return(true));
 
         EXPECT_CALL(*p_dobbymock, registerListener(::testing::_, ::testing::_))
             .WillOnce(::testing::Return(5));
+
+        EXPECT_CALL(*p_dobbymock, registerListenerWithStatus(::testing::_, ::testing::_))
+            .WillOnce(::testing::Return(6));
+
+        EXPECT_CALL(*p_omiproxymock, registerListener(::testing::_, ::testing::_))
+            .WillOnce(::testing::Return(7));
 
         EXPECT_EQ(string(""), plugin->Initialize(&service));
     }
@@ -71,6 +94,12 @@ protected:
     virtual ~OCIContainerInitializedTest() override
     {
         EXPECT_CALL(*p_dobbymock, unregisterListener(5))
+            .WillOnce(::testing::Return());
+
+        EXPECT_CALL(*p_dobbymock, unregisterListenerWithStatus(6))
+            .WillOnce(::testing::Return());
+
+        EXPECT_CALL(*p_omiproxymock, unregisterListener(7))
             .WillOnce(::testing::Return());
 
         plugin->Deinitialize(&service);
@@ -85,6 +114,12 @@ protected:
         {
             delete p_ipcservicemock;
             p_ipcservicemock = nullptr;
+        }
+        omi::OmiProxy::setImpl(nullptr);
+        if (p_omiproxymock != nullptr)
+        {
+            delete p_omiproxymock;
+            p_omiproxymock = nullptr;
         }
     }
 };
