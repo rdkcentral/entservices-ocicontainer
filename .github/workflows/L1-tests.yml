@@ -138,7 +138,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-ocicontainer
           path: entservices-ocicontainer
-          ref: develop
+          ref: topic/RDKEMW-23866
 
       - name: Checkout googletest
         uses: actions/checkout@v3
