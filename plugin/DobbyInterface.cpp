@@ -812,13 +812,18 @@ void DobbyInterface::stateListenerStandard(int32_t descriptor, const std::string
 {
     DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
 
+    // Stopped is handled by stateListener (WithStatus), which also carries the exit code.
+    if (state == IDobbyProxyEvents::ContainerState::Stopped)
+    {
+        return;
+    }
+
+    __this->onContainerStateChanged(descriptor, name, state);
+
     if (state == IDobbyProxyEvents::ContainerState::Running)
     {
-        __this->onContainerStateChanged(descriptor, name, state);
         __this->onContainerStarted(descriptor, name);
     }
-    // ContainerStopped is handled by stateListener (WithStatus) which fires
-    // first (STOPPED_WITH_STATUS precedes STOPPED) and carries the exit code.
 }
 
 void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this)
