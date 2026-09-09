@@ -164,6 +164,8 @@ public:
 
     StateChangeListener storedListener = nullptr;
     const void* storedCbParams = nullptr;
+    StateChangeListenerWithStatus storedStatusListener = nullptr;
+    const void* storedStatusCbParams = nullptr;
     OmiErrorListener storedOmiListener = nullptr;
     const void* storedOmiCbParams = nullptr;
 
@@ -171,6 +173,13 @@ public:
     {
         if (storedListener) {
             storedListener(id, name, state, storedCbParams);
+        }
+    }
+
+    void triggerStateChangeEventWithStatus(int32_t id, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode)
+    {
+        if (storedStatusListener) {
+            storedStatusListener(id, name, state, exitCode, storedStatusCbParams);
         }
     }
 
@@ -215,6 +224,13 @@ OCIContainer_L2Test::OCIContainer_L2Test()
             storedListener = listener;
             storedCbParams = cbParams;
             return 5; // Return a mock listener ID
+        }));
+
+    EXPECT_CALL(*p_dobbyProxyMock, registerListenerWithStatus(::testing::_, ::testing::_))
+        .WillOnce(::testing::Invoke([&](const StateChangeListenerWithStatus& listener, const void* cbParams) {
+            storedStatusListener = listener;
+            storedStatusCbParams = cbParams;
+            return 7; // Return a mock listener ID
         }));
 
     EXPECT_CALL(*p_mockOmiProxy, registerListener(::testing::_, ::testing::_))
@@ -1922,7 +1938,7 @@ TEST_F(OCIContainer_L2Test, ContainerStopped_EventTest)
                 // as the mock does not trigger it
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
                     .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(descriptor, containerID, IDobbyProxyEvents::ContainerState::Stopped);
+                this->triggerStateChangeEventWithStatus(descriptor, containerID, IDobbyProxyEvents::ContainerState::Stopped, 0);
 
                 signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STOPPED);
                 EXPECT_TRUE(signalled & ON_CONTAINER_STOPPED);
@@ -2048,7 +2064,7 @@ TEST_F(OCIContainer_L2Test, ContainerStoppedEvent_JSONRPC)
         &async_handler);
     EXPECT_EQ(Core::ERROR_NONE, status);
 
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"name\":\"com.bskyb.epgui\"}";
+    message = "{\"containerId\":\"com.bskyb.epgui\",\"name\":\"com.bskyb.epgui\",\"exitCode\":0}";
     expected_status.FromString(message);
     EXPECT_CALL(async_handler, onContainerStopped(MatchRequestStatus(expected_status)))
         .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStopped));
@@ -2058,7 +2074,7 @@ TEST_F(OCIContainer_L2Test, ContainerStoppedEvent_JSONRPC)
     // as the mock does not trigger it
     EXPECT_CALL(*p_dobbyProxyMock, listContainers())
         .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(descriptor, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Stopped);
+    this->triggerStateChangeEventWithStatus(descriptor, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Stopped, 0);
 
     signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STOPPED);
     EXPECT_TRUE(signalled & ON_CONTAINER_STOPPED);
