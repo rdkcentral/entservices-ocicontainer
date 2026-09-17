@@ -1663,6 +1663,23 @@ TEST_F(OCIContainer_L2Test, Mount_RejectsSensitivePath)
     EXPECT_FALSE(result["success"].Boolean());
 }
 
+TEST_F(OCIContainer_L2Test, Mount_RejectsRootFilesystem)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "testContainer";
+    params["source"] = "/";
+    params["target"] = "/mnt";
+    params["type"] = "bind";
+    params["options"] = "";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "mount", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
 /*
  * Test case to stop a container using JSONRPC
  * This test case verifies the stopContainer method of the OCIContainer plugin.

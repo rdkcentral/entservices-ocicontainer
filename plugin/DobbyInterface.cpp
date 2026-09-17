@@ -28,6 +28,7 @@
 #include <json/json.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <cctype>
 
 namespace WPEFramework
 {
@@ -652,7 +653,7 @@ bool DobbyInterface::isValidContainerCommand(const string& command, string& erro
     // Allow only simple alphanumeric commands with safe separators
     for (char c : command)
     {
-        if (!isalnum(c) && c != ' ' && c != '-' && c != '_' && c != '/' && c != '.')
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != ' ' && c != '-' && c != '_' && c != '/' && c != '.')
         {
             errorReason = "Command contains invalid characters";
             return false;
@@ -673,21 +674,36 @@ bool DobbyInterface::isValidMountSource(const string& source, string& errorReaso
     }
     std::string canonicalPath(resolved);
 
-    // Reject sensitive host paths
-    const char* sensitivePrefixes[] = {
-        "/etc/",
-        "/var/",
-        "/sys/",
-        "/proc/",
-        "/root/",
-        "/home/",
-        "/dev/",
-        "/boot/"
+    // Reject root filesystem mount
+    if (canonicalPath == "/")
+    {
+        errorReason = "Mounting from root filesystem is not allowed";
+        return false;
+    }
+
+    // Reject sensitive host paths (exact match or with trailing slash)
+    const char* sensitivePaths[] = {
+        "/etc",
+        "/var",
+        "/sys",
+        "/proc",
+        "/root",
+        "/home",
+        "/dev",
+        "/boot"
     };
     
-    for (const char* prefix : sensitivePrefixes)
+    for (const char* sensitive : sensitivePaths)
     {
-        if (canonicalPath.find(prefix) == 0)
+        // Reject exact match (e.g., "/etc")
+        if (canonicalPath == sensitive)
+        {
+            errorReason = "Mounting from sensitive host paths is not allowed";
+            return false;
+        }
+        // Reject with trailing slash (e.g., "/etc/")
+        std::string sensitiveWithSlash = std::string(sensitive) + "/";
+        if (canonicalPath.find(sensitiveWithSlash) == 0)
         {
             errorReason = "Mounting from sensitive host paths is not allowed";
             return false;

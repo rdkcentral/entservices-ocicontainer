@@ -47,9 +47,6 @@ namespace Plugin
             bool getContainerState(const string& containerId, Exchange::IOCIContainer::ContainerState& state, string& errorReason);
             bool startContainer(const string& containerId, const string& bundlePath, const string& command, const string& westerosSocket, int32_t& descriptor, string& errorReason);
             bool startContainerFromDobbySpec(const string& containerId, const string& dobbySpec, const string& command, const string& westerosSocket, int32_t& descriptor, string& errorReason);
-            bool isValidDobbySpec(const string& dobbySpec, string& errorReason);
-            bool isValidContainerCommand(const string& command, string& errorReason);
-            bool isValidMountSource(const string& source, string& errorReason);
             bool stopContainer(const string& containerId, bool force, string& errorReason);
             bool pauseContainer(const string& containerId, string& errorReason);
             bool resumeContainer(const string& containerId, string& errorReason);
@@ -67,6 +64,10 @@ namespace Plugin
             void onVerityFailed(const std::string& name);
         
         private:
+            bool isValidDobbySpec(const string& dobbySpec, string& errorReason);
+            bool isValidContainerCommand(const string& command, string& errorReason);
+            bool isValidMountSource(const string& source, string& errorReason);
+
             int mEventListenerId; // Dobby WithStatus listener ID (STOPPED_WITH_STATUS)
             int mStandardListenerId; // Dobby standard listener ID (ContainerStarted etc.)
             long unsigned mOmiListenerId;
