@@ -1526,13 +1526,141 @@ TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_JSONRPC)
 
     JsonObject params, result;
     params["containerId"] = "com.bskyb.epgui";
-    params["dobbySpec"] = "/containers/dobbySpec";
+    params["dobbySpec"] = R"({"version":"1.0","network":"nat","cwd":"/","args":["/bin/sh"]})";
     params["command"] = "command";
     params["westerosSocket"] = "/usr/mySocket";
 
     status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
     EXPECT_EQ(status, Core::ERROR_NONE);
     EXPECT_TRUE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsPrivileged)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","privileged":true,"cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsAnyMountSource)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","mounts":[{"source":"/etc/passwd","target":"/etc/passwd"}],"cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsHostNetwork)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","network":"host","cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsAnyCapabilities)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","capabilities":{"effective":["CAP_NET_BIND_SERVICE"]},"cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsInvalidType)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","privileged":"true","cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_RejectsHostPidMode)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "com.bskyb.epgui";
+    params["dobbySpec"] = R"({"version":"1.0","pidMode":"host","cwd":"/","args":["/bin/sh"]})";
+    params["command"] = "command";
+    params["westerosSocket"] = "/usr/mySocket";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "startContainerFromDobbySpec", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, ExecuteCommand_RejectsShellInjection)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "testContainer";
+    params["options"] = "";
+    params["command"] = "ls; rm -rf /";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "executeCommand", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
+}
+
+TEST_F(OCIContainer_L2Test, Mount_RejectsSensitivePath)
+{
+    JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
+    uint32_t status = Core::ERROR_GENERAL;
+
+    JsonObject params, result;
+    params["containerId"] = "testContainer";
+    params["source"] = "/etc/passwd";
+    params["target"] = "/etc/passwd";
+    params["type"] = "bind";
+    params["options"] = "";
+
+    status = InvokeServiceMethod("org.rdk.OCIContainer", "mount", params, result);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_FALSE(result["success"].Boolean());
 }
 
 /*
