@@ -25,7 +25,6 @@
 #include <Dobby/IpcService/IpcFactory.h>
 #include <omi_proxy.hpp>
 #include "UtilsJsonRpc.h"
-#include <json/json.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <cctype>
