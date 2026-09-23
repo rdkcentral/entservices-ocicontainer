@@ -377,7 +377,7 @@ stateDiagram-v2
     Created --> Initialized: Initialize()
     Initialized --> Ready: Register handlers
     Ready --> Starting: startContainer()
-    Starting --> Running: DobbyContainerState::Running
+    Starting --> Running: Dobby state Running
     Running --> Stopping: stopContainer() or Dobby stop
     Stopping --> Stopped: STOPPED_WITH_STATUS
     Running --> Failed: verityFailed or startup failure
