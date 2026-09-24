@@ -426,11 +426,10 @@ The L1 tests cover the happy path of method registration and direct Dobby intera
 
 ### Missing coverage and gaps
 This repository does not appear to include direct tests for:
-- encrypted bundle mount/unmount logic in `startContainer()` and `onContainerStopped()`
-- `omiErrorListener` / `onVerityFailed()` handling
+- encrypted bundle mount path in `startContainer()` (stop-time unmount cleanup and verity-failure handling are covered)
 - `stateListenerStandard` vs `stateListener` callback split
-- `HibernateContainer` and `WakeupContainer` paths
-- `Annotate` / `RemoveAnnotation` / `Mount` / `Unmount` end-to-end behavior
+- worker-pool event dispatch and notification fan-out concurrency
+- failure modes when `mDobbyProxy` is null
 - worker-pool event dispatch and notification fan-out concurrency
 - failure modes when `mDobbyProxy` is null or the container cannot be resolved by ID
 
