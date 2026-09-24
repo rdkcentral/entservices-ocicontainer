@@ -378,7 +378,7 @@ stateDiagram-v2
     Starting --> Running: Dobby state Running
     Running --> Stopping: stopContainer() or Dobby stop
     Stopping --> Stopped: STOPPED_WITH_STATUS
-    Running --> Failed: verityFailed or startup failure
+    Running --> Failed: OMI verity failure
     Failed --> Stopped: force stop
     Stopped --> [*]: Deinitialize()
 ```
