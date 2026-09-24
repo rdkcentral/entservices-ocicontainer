@@ -347,9 +347,7 @@ The code follows a consistent pattern:
 - if Dobby operation returns error, log `LOGERR` and return false
 - emit `OnContainerFailed` when verity checking fails
 
-A missing or ambiguous area is the exact semantics of the `Mount` and `Unmount` operations. In [plugin/DobbyInterface.cpp](../plugin/DobbyInterface.cpp), the `mount()` function sets `mountFlags` but leaves it as an empty vector, and the code comment says `//TODO Populate mount flags and data`.
-
-This is an explicit implementation gap in the repository, and the exact mount flag semantics are not defined here.
+A missing or ambiguous area is the exact semantics of the `Mount` and `Unmount` operations. In [plugin/DobbyInterface.cpp](../plugin/DobbyInterface.cpp), `mount()` accepts `type` and `options` but currently ignores both: it creates an empty `mountFlags` vector and passes an empty final argument to Dobby; the code comment says `//TODO Populate mount flags and data`. Therefore callers cannot rely on those API inputs affecting the mount until this is implemented.
 
 ## 7. Diagrams & Visual Aids
 
