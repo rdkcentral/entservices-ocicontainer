@@ -429,8 +429,6 @@ This repository does not appear to include direct tests for:
 - encrypted bundle mount path in `startContainer()` (stop-time unmount cleanup and verity-failure handling are covered)
 - `stateListenerStandard` vs `stateListener` callback split
 - worker-pool event dispatch and notification fan-out concurrency
-- failure modes when `mDobbyProxy` is null
-- worker-pool event dispatch and notification fan-out concurrency
 - failure modes when `mDobbyProxy` is null or the container cannot be resolved by ID
 
 ### Suggested test additions
