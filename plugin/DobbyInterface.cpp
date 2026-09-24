@@ -428,7 +428,7 @@ bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReas
         JsonArray mounts = spec["mounts"].Array();
         for (const auto& mount : mounts)
         {
-            if (mount.Type() != Core::JSON::IElement::JSON_TYPE_OBJECT)
+            if (mount.Type() != Core::JSON::IElement::JSON_TYPE_CONTAINER)
             {
                 errorReason = "Invalid mount entry type";
                 return false;
