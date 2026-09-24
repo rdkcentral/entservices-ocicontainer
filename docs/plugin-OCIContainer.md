@@ -419,6 +419,7 @@ sequenceDiagram
 The repository contains both unit-level and script-level validation:
 
 - [Tests/L1Tests/tests/test_OCIContainer.cpp](../Tests/L1Tests/tests/test_OCIContainer.cpp): verifies registered methods and method invocation behavior for list, state, info, start, stop, pause, resume, and execute command paths
+- [Tests/L2Tests/tests/OCIContainer_L2Test.cpp](../Tests/L2Tests/tests/OCIContainer_L2Test.cpp): exercises COM-RPC/JSON-RPC API paths, state translation, and lifecycle event notifications
 - [plugin/test/thunder-ocicontainer-test.js](../plugin/test/thunder-ocicontainer-test.js): actual Thunder JSON-RPC smoke test exercising the plugin against a live service
 - [plugin/test/ociContainerTest.sh](../plugin/test/ociContainerTest.sh): shell-level test loader for Dobby specs under [plugin/test/DobbySpecs](../plugin/test/DobbySpecs)
 
