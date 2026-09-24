@@ -305,7 +305,7 @@ The request flow is straightforward:
 1. A client calls a JSON-RPC method exposed by the Thunder plugin.
 2. `OCIContainer` delegates to the implementation object.
 3. `OCIContainerImplementation` forwards directly to `DobbyInterface`.
-4. `DobbyInterface` resolves container ID to descriptor and invokes Dobby.
+4. For operations on existing containers, `DobbyInterface` resolves the container ID to a Dobby descriptor before invoking Dobby; start operations pass the new ID and bundle/spec directly to Dobby.
 5. The result is returned as `success` and `errorReason` values.
 
 ### Start-container flow
