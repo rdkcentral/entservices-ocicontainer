@@ -373,7 +373,7 @@ bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReas
     // Reject privileged mode
     if (spec.HasLabel("privileged"))
     {
-        if (spec["privileged"].Type() != Core::JSON::IElement::JSON_TYPE_BOOLEAN)
+        if (spec["privileged"].Content() != Core::JSON::Variant::type::BOOLEAN)
         {
             errorReason = "Invalid type for privileged field";
             return false;
@@ -388,7 +388,7 @@ bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReas
     // Reject host network mode (use correct field name "network" per Dobby schema)
     if (spec.HasLabel("network"))
     {
-        if (spec["network"].Type() != Core::JSON::IElement::JSON_TYPE_STRING)
+        if (spec["network"].Content() != Core::JSON::Variant::type::STRING)
         {
             errorReason = "Invalid type for network field";
             return false;
@@ -404,7 +404,7 @@ bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReas
     // Reject host PID mode
     if (spec.HasLabel("pidMode"))
     {
-        if (spec["pidMode"].Type() != Core::JSON::IElement::JSON_TYPE_STRING)
+        if (spec["pidMode"].Content() != Core::JSON::Variant::type::STRING)
         {
             errorReason = "Invalid type for pidMode field";
             return false;
@@ -420,15 +420,17 @@ bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReas
     // Reject all host source mounts for security - no allowlist
     if (spec.HasLabel("mounts"))
     {
-        if (spec["mounts"].Type() != Core::JSON::IElement::JSON_TYPE_ARRAY)
+        if (spec["mounts"].Content() != Core::JSON::Variant::type::ARRAY)
         {
             errorReason = "Invalid type for mounts field";
             return false;
         }
         JsonArray mounts = spec["mounts"].Array();
-        for (const auto& mount : mounts)
+        auto mountIterator = mounts.Elements();
+        while (mountIterator.Next())
         {
-            if (mount.Type() != Core::JSON::IElement::JSON_TYPE_CONTAINER)
+            const auto& mount = mountIterator.Current();
+            if (mount.Content() != Core::JSON::Variant::type::OBJECT)
             {
                 errorReason = "Invalid mount entry type";
                 return false;
