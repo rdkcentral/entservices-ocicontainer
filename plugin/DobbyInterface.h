@@ -64,6 +64,10 @@ namespace Plugin
             void onVerityFailed(const std::string& name);
         
         private:
+            bool isValidDobbySpec(const string& dobbySpec, string& errorReason);
+            bool isValidContainerCommand(const string& command, string& errorReason);
+            bool isValidMountSource(const string& source, string& errorReason);
+
             int mEventListenerId; // Dobby WithStatus listener ID (STOPPED_WITH_STATUS)
             int mStandardListenerId; // Dobby standard listener ID (ContainerStarted etc.)
             long unsigned mOmiListenerId;
