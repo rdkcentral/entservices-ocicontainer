@@ -64,11 +64,8 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
     // calls to the Dobby daemon
     mDobbyProxy = std::make_shared<DobbyProxy>(mIpcService, DOBBY_SERVICE, DOBBY_OBJECT);
 
-    // Register using the standard listener for ContainerStarted (and other non-stop) events.
+    // Register using the standard listener for container lifecycle events.
     mStandardListenerId = mDobbyProxy->registerListener(stateListenerStandard, static_cast<const void*>(this));
-
-    // Register using the WithStatus listener to receive exit code alongside stop events.
-    mEventListenerId = mDobbyProxy->registerListenerWithStatus(stateListener, static_cast<const void*>(this));
 
     mOmiProxy = std::make_shared<omi::OmiProxy>();
 
@@ -81,7 +78,6 @@ void DobbyInterface::terminate()
 {
     mEventHandler = nullptr;
     mDobbyProxy->unregisterListener(mStandardListenerId);
-    mDobbyProxy->unregisterListenerWithStatus(mEventListenerId);
     mOmiProxy->unregisterListener(mOmiListenerId);
 }
 
@@ -1015,23 +1011,15 @@ void DobbyInterface::stateListenerStandard(int32_t descriptor, const std::string
 {
     DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
 
+    __this->onContainerStateChanged(descriptor, name, state);
     if (state == IDobbyProxyEvents::ContainerState::Running)
     {
-        __this->onContainerStateChanged(descriptor, name, state);
         __this->onContainerStarted(descriptor, name);
     }
-    // ContainerStopped is handled by stateListener (WithStatus) which fires
-    // first (STOPPED_WITH_STATUS precedes STOPPED) and carries the exit code.
-}
-
-void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this)
-{
-    // Cast const void* back to DobbyInterface* type to get 'this'
-    DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
-
-    // This listener fires only for STOPPED_WITH_STATUS events (state is always Stopped).
-    __this->onContainerStateChanged(descriptor, name, state);
-    __this->onContainerStopped(descriptor, name, exitCode);
+    else if (state == IDobbyProxyEvents::ContainerState::Stopped)
+    {
+        __this->onContainerStopped(descriptor, name, 0);
+    }
 }
 
 /**
