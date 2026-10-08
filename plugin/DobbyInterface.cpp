@@ -36,7 +36,7 @@ namespace Plugin
 namespace WPEC = WPEFramework::Core;
 namespace WPEJ = WPEFramework::Core::JSON;
 
-DobbyInterface::DobbyInterface(): mEventListenerId(0), mOmiListenerId(0), mEventHandler(nullptr)
+DobbyInterface::DobbyInterface(): mStandardListenerId(0), mOmiListenerId(0), mEventHandler(nullptr)
 {
 }
 
