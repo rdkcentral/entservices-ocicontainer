@@ -25,6 +25,9 @@
 #include <Dobby/IpcService/IpcFactory.h>
 #include <omi_proxy.hpp>
 #include "UtilsJsonRpc.h"
+#include <limits.h>
+#include <stdlib.h>
+#include <cctype>
 
 namespace WPEFramework
 {
@@ -61,11 +64,8 @@ bool DobbyInterface::initialize(IEventHandler* eventHandler)
     // calls to the Dobby daemon
     mDobbyProxy = std::make_shared<DobbyProxy>(mIpcService, DOBBY_SERVICE, DOBBY_OBJECT);
 
-    // Register using the standard listener for ContainerStarted (and other non-stop) events.
+    // Register using the standard listener for container lifecycle events.
     mStandardListenerId = mDobbyProxy->registerListener(stateListenerStandard, static_cast<const void*>(this));
-
-    // Register using the WithStatus listener to receive exit code alongside stop events.
-    mEventListenerId = mDobbyProxy->registerListenerWithStatus(stateListener, static_cast<const void*>(this));
 
     mOmiProxy = std::make_shared<omi::OmiProxy>();
 
@@ -78,7 +78,6 @@ void DobbyInterface::terminate()
 {
     mEventHandler = nullptr;
     mDobbyProxy->unregisterListener(mStandardListenerId);
-    mDobbyProxy->unregisterListenerWithStatus(mEventListenerId);
     mOmiProxy->unregisterListener(mOmiListenerId);
 }
 
@@ -313,6 +312,13 @@ bool DobbyInterface::startContainerFromDobbySpec(const string& containerId, cons
         return false;
     }
 
+    // Validate the Dobby spec before passing to Dobby daemon
+    if (!isValidDobbySpec(dobbySpec, errorReason))
+    {
+        LOGERR("Invalid Dobby spec: %s", errorReason.c_str());
+        return false;
+    }
+
     // To start a container, we need a Dobby spec and an ID for the container
     std::string id = containerId;
 
@@ -344,6 +350,100 @@ bool DobbyInterface::startContainerFromDobbySpec(const string& containerId, cons
     if (descriptor <= 0)
     {
         LOGERR("Failed to start container - internal Dobby error.");
+        return false;
+    }
+
+    return true;
+}
+
+bool DobbyInterface::isValidDobbySpec(const string& dobbySpec, string& errorReason)
+{
+    // Parse the JSON spec
+    JsonObject spec;
+    if (!spec.FromString(dobbySpec))
+    {
+        errorReason = "Invalid JSON format in Dobby spec";
+        return false;
+    }
+
+    // Reject privileged mode
+    if (spec.HasLabel("privileged"))
+    {
+        if (spec["privileged"].Content() != Core::JSON::Variant::type::BOOLEAN)
+        {
+            errorReason = "Invalid type for privileged field";
+            return false;
+        }
+        if (spec["privileged"].Boolean())
+        {
+            errorReason = "Privileged mode is not allowed";
+            return false;
+        }
+    }
+
+    // Reject host network mode (use correct field name "network" per Dobby schema)
+    if (spec.HasLabel("network"))
+    {
+        if (spec["network"].Content() != Core::JSON::Variant::type::STRING)
+        {
+            errorReason = "Invalid type for network field";
+            return false;
+        }
+        std::string networkMode = spec["network"].String();
+        if (networkMode == "host")
+        {
+            errorReason = "Host network mode is not allowed";
+            return false;
+        }
+    }
+
+    // Reject host PID mode
+    if (spec.HasLabel("pidMode"))
+    {
+        if (spec["pidMode"].Content() != Core::JSON::Variant::type::STRING)
+        {
+            errorReason = "Invalid type for pidMode field";
+            return false;
+        }
+        std::string pidMode = spec["pidMode"].String();
+        if (pidMode == "host")
+        {
+            errorReason = "Host PID mode is not allowed";
+            return false;
+        }
+    }
+
+    // Reject all host source mounts for security - no allowlist
+    if (spec.HasLabel("mounts"))
+    {
+        if (spec["mounts"].Content() != Core::JSON::Variant::type::ARRAY)
+        {
+            errorReason = "Invalid type for mounts field";
+            return false;
+        }
+        JsonArray mounts = spec["mounts"].Array();
+        auto mountIterator = mounts.Elements();
+        while (mountIterator.Next())
+        {
+            const auto& mount = mountIterator.Current();
+            if (mount.Content() != Core::JSON::Variant::type::OBJECT)
+            {
+                errorReason = "Invalid mount entry type";
+                return false;
+            }
+            JsonObject mountObj = mount.Object();
+            if (mountObj.HasLabel("source"))
+            {
+                errorReason = "Host source mounts are not allowed for security";
+                return false;
+            }
+        }
+    }
+
+    // Reject all capabilities for security - no allowlist
+    if (spec.HasLabel("capabilities"))
+    {
+        errorReason = "Capabilities are not allowed for security";
         return false;
     }
 
@@ -507,6 +607,13 @@ bool DobbyInterface::executeCommand(const string& containerId, const string& opt
         return false;
     }
 
+    // Validate command to prevent shell injection
+    if (!isValidContainerCommand(command, errorReason))
+    {
+        LOGERR("Invalid container command: %s", errorReason.c_str());
+        return false;
+    }
+
     std::string id = containerId;
 
     int cd = GetContainerDescriptorFromId(id);
@@ -520,6 +627,91 @@ bool DobbyInterface::executeCommand(const string& containerId, const string& opt
     if (!executedSuccessfully)
     {
         LOGERR("Failed to execute command in container - internal Dobby error.");
+        return false;
+    }
+
+    return true;
+}
+
+bool DobbyInterface::isValidContainerCommand(const string& command, string& errorReason)
+{
+    // Reject shell metacharacters that could enable injection
+    const char* dangerousChars[] = {";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r"};
+    
+    for (const char* dangerous : dangerousChars)
+    {
+        if (command.find(dangerous) != string::npos)
+        {
+            errorReason = "Command contains dangerous characters";
+            return false;
+        }
+    }
+
+    // Allow only simple alphanumeric commands with safe separators
+    for (char c : command)
+    {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != ' ' && c != '-' && c != '_' && c != '/' && c != '.')
+        {
+            errorReason = "Command contains invalid characters";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool DobbyInterface::isValidMountSource(const string& source, string& errorReason)
+{
+    // Canonicalize the path to prevent traversal
+    char resolved[PATH_MAX];
+    if (realpath(source.c_str(), resolved) == nullptr)
+    {
+        errorReason = "Invalid mount source: cannot resolve";
+        return false;
+    }
+    std::string canonicalPath(resolved);
+
+    // Reject root filesystem mount
+    if (canonicalPath == "/")
+    {
+        errorReason = "Mounting from root filesystem is not allowed";
+        return false;
+    }
+
+    // Reject sensitive host paths (exact match or with trailing slash)
+    const char* sensitivePaths[] = {
+        "/etc",
+        "/var",
+        "/sys",
+        "/proc",
+        "/root",
+        "/home",
+        "/dev",
+        "/boot"
+    };
+    
+    for (const char* sensitive : sensitivePaths)
+    {
+        // Reject exact match (e.g., "/etc")
+        if (canonicalPath == sensitive)
+        {
+            errorReason = "Mounting from sensitive host paths is not allowed";
+            return false;
+        }
+        // Reject with trailing slash (e.g., "/etc/")
+        std::string sensitiveWithSlash = std::string(sensitive) + "/";
+        if (canonicalPath.find(sensitiveWithSlash) == 0)
+        {
+            errorReason = "Mounting from sensitive host paths is not allowed";
+            return false;
+        }
+    }
+
+    // Reject symlinks
+    struct stat st;
+    if (lstat(source.c_str(), &st) == 0 && S_ISLNK(st.st_mode))
+    {
+        errorReason = "Symlinks are not allowed for mount sources";
         return false;
     }
 
@@ -588,6 +780,13 @@ bool DobbyInterface::mount(const string& containerId, const string& source, cons
     if (nullptr == mDobbyProxy)
     {
         errorReason = "dobby environment is not ready";
+        return false;
+    }
+
+    // Validate mount source to prevent sensitive host path exposure
+    if (!isValidMountSource(source, errorReason))
+    {
+        LOGERR("Invalid mount source: %s", errorReason.c_str());
         return false;
     }
 
@@ -812,23 +1011,15 @@ void DobbyInterface::stateListenerStandard(int32_t descriptor, const std::string
 {
     DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
 
+    __this->onContainerStateChanged(descriptor, name, state);
     if (state == IDobbyProxyEvents::ContainerState::Running)
     {
-        __this->onContainerStateChanged(descriptor, name, state);
         __this->onContainerStarted(descriptor, name);
     }
-    // ContainerStopped is handled by stateListener (WithStatus) which fires
-    // first (STOPPED_WITH_STATUS precedes STOPPED) and carries the exit code.
-}
-
-void DobbyInterface::stateListener(int32_t descriptor, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode, const void* _this)
-{
-    // Cast const void* back to DobbyInterface* type to get 'this'
-    DobbyInterface* __this = const_cast<DobbyInterface*>(reinterpret_cast<const DobbyInterface*>(_this));
-
-    // This listener fires only for STOPPED_WITH_STATUS events (state is always Stopped).
-    __this->onContainerStateChanged(descriptor, name, state);
-    __this->onContainerStopped(descriptor, name, exitCode);
+    else if (state == IDobbyProxyEvents::ContainerState::Stopped)
+    {
+        __this->onContainerStopped(descriptor, name, 0);
+    }
 }
 
 /**
