@@ -19,9 +19,9 @@
 
 #include "OCIContainer.h"
 
-const string WPEFramework::Plugin::OCIContainer::SERVICE_NAME = "org.rdk.OCIContainer";
+const string Thunder::Plugin::OCIContainer::SERVICE_NAME = "org.rdk.OCIContainer";
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace {
 
@@ -144,4 +144,4 @@ namespace WPEFramework
         }
 
     } /* namespace Plugin */
-} /* namespace WPEFramework */
+} /* namespace Thunder */

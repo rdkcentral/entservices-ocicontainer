@@ -27,7 +27,7 @@
 #include <omi_proxy.hpp>
 #include "IEventHandler.h"
 
-namespace WPEFramework
+namespace Thunder
 {
 namespace Plugin
 {
@@ -78,4 +78,4 @@ namespace Plugin
             IEventHandler* mEventHandler;
     };
 } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

@@ -27,7 +27,7 @@
 #include "DobbyInterface.h"
 #include "IEventHandler.h"
 
-namespace WPEFramework
+namespace Thunder
 {
 namespace Plugin
 {
@@ -41,7 +41,13 @@ namespace Plugin
                 OCICONTAINER_EVENT_CONTAINER_FAILED,
                 OCICONTAINER_EVENT_STATE_CHANGED
             };
-            class EXTERNAL Job : public Core::IDispatch
+#if defined(THUNDER_VERSION) && (THUNDER_VERSION <= 4)
+            using ThunderDispatcher = Core::IDispatchType<void>;
+#else
+            using ThunderDispatcher = Core::IDispatch;
+#endif
+
+            class EXTERNAL Job : public ThunderDispatcher
             {
                 protected:
                         Job(OCIContainerImplementation *runtimeManagerImplementation, EventNames event, JsonObject &params)
@@ -68,13 +74,9 @@ namespace Plugin
                         }
 
                 public:
-                        static Core::ProxyType<Core::IDispatch> Create(OCIContainerImplementation *runtimeManagerImplementation, EventNames event, JsonObject params)
+                        static Core::ProxyType<ThunderDispatcher> Create(OCIContainerImplementation *runtimeManagerImplementation, EventNames event, JsonObject params)
                         {
-#ifndef  USE_THUNDER_R4
-                            return (Core::proxy_cast<Core::IDispatch>(Core::ProxyType<Job>::Create(runtimeManagerImplementation, event, params)));
-#else
-                            return (Core::ProxyType<Core::IDispatch>(Core::ProxyType<Job>::Create(runtimeManagerImplementation, event, params)));
-#endif
+                            return (Core::ProxyType<ThunderDispatcher>(Core::ProxyType<Job>::Create(runtimeManagerImplementation, event, params)));
                         }
 
                         virtual void Dispatch()
@@ -132,4 +134,4 @@ namespace Plugin
             friend class Job;
     };
 } /* namespace Plugin */
-} /* namespace WPEFramework */
+} /* namespace Thunder */

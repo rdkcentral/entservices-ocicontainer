@@ -26,12 +26,12 @@
 #include <omi_proxy.hpp>
 #include "UtilsJsonRpc.h"
 
-namespace WPEFramework
+namespace Thunder
 {
 namespace Plugin
 {
-namespace WPEC = WPEFramework::Core;
-namespace WPEJ = WPEFramework::Core::JSON;
+namespace WPEC = Thunder::Core;
+namespace WPEJ = Thunder::Core::JSON;
 
 DobbyInterface::DobbyInterface(): mEventListenerId(0), mStandardListenerId(0), mOmiListenerId(0), mEventHandler(nullptr)
 {
@@ -108,7 +108,7 @@ bool DobbyInterface::listContainers(string& containers, string& errorReason)
         }
     }
 
-    if (!WPEFramework::Core::JSON::IElement::ToString(containerArray, containers))
+    if (!Thunder::Core::JSON::IElement::ToString(containerArray, containers))
     {
         errorReason = "Failed to convert Dobby spec to string";
         return false;
@@ -893,4 +893,4 @@ void DobbyInterface::onVerityFailed(const std::string& name)
 // End Internal methods
 
 } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

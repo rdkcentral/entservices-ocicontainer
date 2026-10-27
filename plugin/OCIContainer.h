@@ -27,7 +27,7 @@
 #include "tracing/Logging.h"
 #include <mutex>
 
-namespace WPEFramework
+namespace Thunder
 {
 namespace Plugin
 {
@@ -136,4 +136,4 @@ namespace Plugin
             Core::Sink<Notification> mOCIContainerNotification;
     };
 } /* namespace Plugin */
-} /* namespace WPEFramework */
+} /* namespace Thunder */

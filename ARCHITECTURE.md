@@ -2,7 +2,7 @@
 
 ## Overview
 
-The OCIContainer plugin is a WPEFramework/Thunder plugin that provides container management capabilities for RDK platforms. It acts as a bridge between Thunder framework and the Dobby container runtime, exposing container lifecycle management through a standardized COM-RPC interface.
+The OCIContainer plugin is a Thunder plugin that provides container management capabilities for RDK platforms. It acts as a bridge between Thunder framework and the Dobby container runtime, exposing container lifecycle management through a standardized COM-RPC interface.
 
 ## System Architecture
 
@@ -157,7 +157,7 @@ Client event handlers (onContainerStarted/Stopped/StateChanged)
 ## Dependencies
 
 ### External Libraries
-- **WPEFramework/Thunder:** Plugin framework, COM-RPC, JSON-RPC
+- **Thunder:** Plugin framework, COM-RPC, JSON-RPC
 - **Dobby:** OCI container runtime and management daemon
 - **libsystemd (sd-bus):** D-Bus communication
 - **OMI Client Library:** OCI Metadata Interface for secure containers
