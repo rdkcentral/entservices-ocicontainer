@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "Module.h"
 #include <Dobby/DobbyProtocol.h>
 #include <Dobby/Public/Dobby/IDobbyProxy.h>
 #include <interfaces/IOCIContainer.h>
