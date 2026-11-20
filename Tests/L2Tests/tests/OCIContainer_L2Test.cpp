@@ -92,13 +92,14 @@ public:
         m_condition_variable.notify_one();
     }
 
-    void OnContainerStopped(const string& containerId, const string& name) override
+    void OnContainerStopped(const string& containerId, const string& name, int32_t exitCode) override
     {
         TEST_LOG("OnContainerStopped event triggered ***\n");
         std::unique_lock<std::mutex> lock(m_mutex);
 
         TEST_LOG("OnContainerStopped received (CONTAINER ID): %s\n", containerId.c_str());
         TEST_LOG("OnContainerStopped received (NAME): %s\n", name.c_str());
+        TEST_LOG("OnContainerStopped received (EXIT CODE): %d\n", exitCode);
         /* Notify the requester thread. */
         m_event_signalled |= ON_CONTAINER_STOPPED;
         m_condition_variable.notify_one();
@@ -163,6 +164,8 @@ public:
 
     StateChangeListener storedListener = nullptr;
     const void* storedCbParams = nullptr;
+    StateChangeListenerWithStatus storedStatusListener = nullptr;
+    const void* storedStatusCbParams = nullptr;
     OmiErrorListener storedOmiListener = nullptr;
     const void* storedOmiCbParams = nullptr;
 
@@ -170,6 +173,13 @@ public:
     {
         if (storedListener) {
             storedListener(id, name, state, storedCbParams);
+        }
+    }
+
+    void triggerStateChangeEventWithStatus(int32_t id, const std::string& name, IDobbyProxyEvents::ContainerState state, int32_t exitCode)
+    {
+        if (storedStatusListener) {
+            storedStatusListener(id, name, state, exitCode, storedStatusCbParams);
         }
     }
 
@@ -214,6 +224,13 @@ OCIContainer_L2Test::OCIContainer_L2Test()
             storedListener = listener;
             storedCbParams = cbParams;
             return 5; // Return a mock listener ID
+        }));
+
+    EXPECT_CALL(*p_dobbyProxyMock, registerListenerWithStatus(::testing::_, ::testing::_))
+        .WillOnce(::testing::Invoke([&](const StateChangeListenerWithStatus& listener, const void* cbParams) {
+            storedStatusListener = listener;
+            storedStatusCbParams = cbParams;
+            return 7; // Return a mock listener ID
         }));
 
     EXPECT_CALL(*p_mockOmiProxy, registerListener(::testing::_, ::testing::_))
@@ -860,8 +877,6 @@ TEST_F(OCIContainer_L2Test, ListContainer_INVALID_COMRPC)
 TEST_F(OCIContainer_L2Test, StartContainer_COMRPC)
 {
     uint32_t status = Core::ERROR_GENERAL;
-    Core::Sink<OCIContainerNotificationHandler> notify;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     string containerID = "com.bskyb.epgui", bundlepath = "/containers/myBundle", command = "command", westerOSSocket = "/usr/mySocket";
     int32_t descriptor = 0;
     string errorReason;
@@ -874,28 +889,16 @@ TEST_F(OCIContainer_L2Test, StartContainer_COMRPC)
             EXPECT_TRUE(m_OCIContainerplugin != nullptr);
             if (m_OCIContainerplugin) {
                 m_OCIContainerplugin->AddRef();
-                m_OCIContainerplugin->Register(&notify);
 
                 EXPECT_CALL(*p_dobbyProxyMock, startContainerFromBundle(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
                     .WillOnce(::testing::Return(91));
 
                 status = m_OCIContainerplugin->StartContainer(containerID, bundlepath, command, westerOSSocket, descriptor, success, errorReason);
 
-                // manually trigger the state change event for the container
-                // as the mock does not trigger it
-                std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
-                EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-                    .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(91, containerID, IDobbyProxyEvents::ContainerState::Starting);
-
                 EXPECT_EQ(status, Core::ERROR_NONE);
                 EXPECT_TRUE(success);
                 TEST_LOG("StartContainer returned descriptor: %d, errorReason: %s", descriptor, errorReason.c_str());
 
-                signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-                EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-
-                m_OCIContainerplugin->Unregister(&notify);
                 m_OCIContainerplugin->Release();
             } else {
                 TEST_LOG("m_OCIContainerplugin is NULL");
@@ -956,8 +959,6 @@ TEST_F(OCIContainer_L2Test, StartContainerFromDobbySpec_COMRPC)
 TEST_F(OCIContainer_L2Test, StopContainer_COMRPC)
 {
     uint32_t status = Core::ERROR_GENERAL;
-    Core::Sink<OCIContainerNotificationHandler> notify;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     string containerID = "com.bskyb.epgui";
     bool force = true;
     string errorReason;
@@ -970,7 +971,6 @@ TEST_F(OCIContainer_L2Test, StopContainer_COMRPC)
             EXPECT_TRUE(m_OCIContainerplugin != nullptr);
             if (m_OCIContainerplugin) {
                 m_OCIContainerplugin->AddRef();
-                m_OCIContainerplugin->Register(&notify);
 
                 std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
@@ -981,19 +981,9 @@ TEST_F(OCIContainer_L2Test, StopContainer_COMRPC)
 
                 status = m_OCIContainerplugin->StopContainer(containerID, force, success, errorReason);
 
-                // manually trigger the state change event for the container
-                // as the mock does not trigger it
-                EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-                    .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(91, containerID, IDobbyProxyEvents::ContainerState::Stopping);
-
-                signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-                EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-
                 EXPECT_EQ(status, Core::ERROR_NONE);
                 EXPECT_TRUE(success);
 
-                m_OCIContainerplugin->Unregister(&notify);
                 m_OCIContainerplugin->Release();
             } else {
                 TEST_LOG("m_OCIContainerplugin is NULL");
@@ -1013,8 +1003,6 @@ TEST_F(OCIContainer_L2Test, StopContainer_COMRPC)
 TEST_F(OCIContainer_L2Test, PauseContainer_COMRPC)
 {
     uint32_t status = Core::ERROR_GENERAL;
-    Core::Sink<OCIContainerNotificationHandler> notify;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     string containerID = "com.bskyb.epgui";
     string errorReason;
     bool success = false;
@@ -1026,7 +1014,6 @@ TEST_F(OCIContainer_L2Test, PauseContainer_COMRPC)
             EXPECT_TRUE(m_OCIContainerplugin != nullptr);
             if (m_OCIContainerplugin) {
                 m_OCIContainerplugin->AddRef();
-                m_OCIContainerplugin->Register(&notify);
 
                 std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
@@ -1037,19 +1024,9 @@ TEST_F(OCIContainer_L2Test, PauseContainer_COMRPC)
 
                 status = m_OCIContainerplugin->PauseContainer(containerID, success, errorReason);
 
-                // manually trigger the state change event for the container
-                // as the mock does not trigger it
-                EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-                    .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(91, containerID, IDobbyProxyEvents::ContainerState::Paused);
-
                 EXPECT_EQ(status, Core::ERROR_NONE);
                 EXPECT_TRUE(success);
 
-                signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-                EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-
-                m_OCIContainerplugin->Unregister(&notify);
                 m_OCIContainerplugin->Release();
             } else {
                 TEST_LOG("m_OCIContainerplugin is NULL");
@@ -1111,8 +1088,6 @@ TEST_F(OCIContainer_L2Test, ResumeContainer_COMRPC)
 TEST_F(OCIContainer_L2Test, HibernateContainer_COMRPC)
 {
     uint32_t status = Core::ERROR_GENERAL;
-    Core::Sink<OCIContainerNotificationHandler> notify;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     string containerID = "com.bskyb.epgui";
     string errorReason, options;
     bool success = false;
@@ -1124,7 +1099,6 @@ TEST_F(OCIContainer_L2Test, HibernateContainer_COMRPC)
             EXPECT_TRUE(m_OCIContainerplugin != nullptr);
             if (m_OCIContainerplugin) {
                 m_OCIContainerplugin->AddRef();
-                m_OCIContainerplugin->Register(&notify);
 
                 std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
@@ -1135,19 +1109,9 @@ TEST_F(OCIContainer_L2Test, HibernateContainer_COMRPC)
 
                 status = m_OCIContainerplugin->HibernateContainer(containerID, options, success, errorReason);
 
-                // manually trigger the state change event for the container
-                // as the mock does not trigger it
-                EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-                    .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(91, containerID, IDobbyProxyEvents::ContainerState::Hibernating);
-
                 EXPECT_EQ(status, Core::ERROR_NONE);
                 EXPECT_TRUE(success);
 
-                signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-                EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-
-                m_OCIContainerplugin->Unregister(&notify);
                 m_OCIContainerplugin->Release();
             } else {
                 TEST_LOG("m_OCIContainerplugin is NULL");
@@ -1167,8 +1131,6 @@ TEST_F(OCIContainer_L2Test, HibernateContainer_COMRPC)
 TEST_F(OCIContainer_L2Test, WakeupContainer_COMRPC)
 {
     uint32_t status = Core::ERROR_GENERAL;
-    Core::Sink<OCIContainerNotificationHandler> notify;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     string containerID = "com.bskyb.epgui";
     string errorReason;
     bool success = false;
@@ -1180,7 +1142,6 @@ TEST_F(OCIContainer_L2Test, WakeupContainer_COMRPC)
             EXPECT_TRUE(m_OCIContainerplugin != nullptr);
             if (m_OCIContainerplugin) {
                 m_OCIContainerplugin->AddRef();
-                m_OCIContainerplugin->Register(&notify);
 
                 std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
@@ -1191,19 +1152,9 @@ TEST_F(OCIContainer_L2Test, WakeupContainer_COMRPC)
 
                 status = m_OCIContainerplugin->WakeupContainer(containerID, success, errorReason);
 
-                // manually trigger the state change event for the container
-                // as the mock does not trigger it
-                EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-                    .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(91, containerID, IDobbyProxyEvents::ContainerState::Awakening);
-
                 EXPECT_EQ(status, Core::ERROR_NONE);
                 EXPECT_TRUE(success);
 
-                signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-                EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-
-                m_OCIContainerplugin->Unregister(&notify);
                 m_OCIContainerplugin->Release();
             } else {
                 TEST_LOG("m_OCIContainerplugin is NULL");
@@ -1469,25 +1420,9 @@ TEST_F(OCIContainer_L2Test, getcontainerInfo_JSONRPC)
 TEST_F(OCIContainer_L2Test, Startcontainer_JSONRPC)
 {
     JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
-    StrictMock<AsyncHandlerMock_OCIContainer> async_handler;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     uint32_t status = Core::ERROR_GENERAL;
-    std::string message;
-    JsonObject expected_status;
-
     EXPECT_CALL(*p_dobbyProxyMock, startContainerFromBundle(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
         .WillOnce(::testing::Return(91));
-
-    status = jsonrpc.Subscribe<JsonObject>(EVNT_TIMEOUT,
-        _T("onContainerStateChanged"),
-        &AsyncHandlerMock_OCIContainer::onContainerStateChanged,
-        &async_handler);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"state\":\"STARTING\"}";
-    expected_status.FromString(message);
-    EXPECT_CALL(async_handler, onContainerStateChanged(MatchRequestStatus(expected_status)))
-        .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStateChanged));
 
     JsonObject params, result;
     params["containerId"] = "com.bskyb.epgui";
@@ -1499,16 +1434,6 @@ TEST_F(OCIContainer_L2Test, Startcontainer_JSONRPC)
     EXPECT_EQ(status, Core::ERROR_NONE);
     EXPECT_TRUE(result["success"].Boolean());
 
-    // manually trigger the state change event for the container
-    // as the mock does not trigger it
-    std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
-    EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-        .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(91, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Starting);
-
-    signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-    EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-    jsonrpc.Unsubscribe(EVNT_TIMEOUT, _T("onContainerStateChanged"));
 }
 
 /*
@@ -1542,23 +1467,7 @@ TEST_F(OCIContainer_L2Test, StartcontainerFromDobbySpec_JSONRPC)
 TEST_F(OCIContainer_L2Test, StopContainer_JSONRPC)
 {
     JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
-    StrictMock<AsyncHandlerMock_OCIContainer> async_handler;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     uint32_t status = Core::ERROR_GENERAL;
-    std::string message;
-    JsonObject expected_status;
-
-    status = jsonrpc.Subscribe<JsonObject>(EVNT_TIMEOUT,
-        _T("onContainerStateChanged"),
-        &AsyncHandlerMock_OCIContainer::onContainerStateChanged,
-        &async_handler);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"state\":\"STOPPING\"}";
-    expected_status.FromString(message);
-    EXPECT_CALL(async_handler, onContainerStateChanged(MatchRequestStatus(expected_status)))
-        .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStateChanged));
-
     std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
     EXPECT_CALL(*p_dobbyProxyMock, listContainers())
         .WillOnce(::testing::Return(containerslist));
@@ -1574,15 +1483,6 @@ TEST_F(OCIContainer_L2Test, StopContainer_JSONRPC)
     EXPECT_EQ(status, Core::ERROR_NONE);
     EXPECT_TRUE(result["success"].Boolean());
 
-    // manually trigger the state change event for the container
-    // as the mock does not trigger it
-    EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-        .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(91, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Stopping);
-
-    signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-    EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-    jsonrpc.Unsubscribe(EVNT_TIMEOUT, _T("onContainerStateChanged"));
 }
 
 /*
@@ -1593,23 +1493,7 @@ TEST_F(OCIContainer_L2Test, StopContainer_JSONRPC)
 TEST_F(OCIContainer_L2Test, PauseContainer_JSONRPC)
 {
     JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
-    StrictMock<AsyncHandlerMock_OCIContainer> async_handler;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     uint32_t status = Core::ERROR_GENERAL;
-    std::string message;
-    JsonObject expected_status;
-
-    status = jsonrpc.Subscribe<JsonObject>(EVNT_TIMEOUT,
-        _T("onContainerStateChanged"),
-        &AsyncHandlerMock_OCIContainer::onContainerStateChanged,
-        &async_handler);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"state\":\"PAUSED\"}";
-    expected_status.FromString(message);
-    EXPECT_CALL(async_handler, onContainerStateChanged(MatchRequestStatus(expected_status)))
-        .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStateChanged));
-
     std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
     EXPECT_CALL(*p_dobbyProxyMock, listContainers())
         .WillOnce(::testing::Return(containerslist));
@@ -1624,15 +1508,6 @@ TEST_F(OCIContainer_L2Test, PauseContainer_JSONRPC)
     EXPECT_EQ(status, Core::ERROR_NONE);
     EXPECT_TRUE(result["success"].Boolean());
 
-    // manually trigger the state change event for the container
-    // as the mock does not trigger it
-    EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-        .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(91, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Paused);
-
-    signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-    EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-    jsonrpc.Unsubscribe(EVNT_TIMEOUT, _T("onContainerStateChanged"));
 }
 
 /*
@@ -1668,23 +1543,7 @@ TEST_F(OCIContainer_L2Test, ResumeContainer_JSONRPC)
 TEST_F(OCIContainer_L2Test, HibernateContainer_JSONRPC)
 {
     JSONRPC::LinkType<Core::JSON::IElement> jsonrpc(OCICONTAINER_CALLSIGN, OCICONTAINERTEST_CALLSIGN);
-    StrictMock<AsyncHandlerMock_OCIContainer> async_handler;
-    uint32_t signalled = OCICONTAINER_STATUS_INVALID;
     uint32_t status = Core::ERROR_GENERAL;
-    std::string message;
-    JsonObject expected_status;
-
-    status = jsonrpc.Subscribe<JsonObject>(EVNT_TIMEOUT,
-        _T("onContainerStateChanged"),
-        &AsyncHandlerMock_OCIContainer::onContainerStateChanged,
-        &async_handler);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"state\":\"HIBERNATING\"}";
-    expected_status.FromString(message);
-    EXPECT_CALL(async_handler, onContainerStateChanged(MatchRequestStatus(expected_status)))
-        .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStateChanged));
-
     std::list<std::pair<int32_t, std::string>> containerslist = { { 91, "com.bskyb.epgui" }, { 94, "Netflix" } };
     EXPECT_CALL(*p_dobbyProxyMock, listContainers())
         .WillOnce(::testing::Return(containerslist));
@@ -1700,15 +1559,6 @@ TEST_F(OCIContainer_L2Test, HibernateContainer_JSONRPC)
     EXPECT_EQ(status, Core::ERROR_NONE);
     EXPECT_TRUE(result["success"].Boolean());
 
-    // manually trigger the state change event for the container
-    // as the mock does not trigger it
-    EXPECT_CALL(*p_dobbyProxyMock, listContainers())
-        .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(91, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Hibernating);
-
-    signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STATECHANGED);
-    EXPECT_TRUE(signalled & ON_CONTAINER_STATECHANGED);
-    jsonrpc.Unsubscribe(EVNT_TIMEOUT, _T("onContainerStateChanged"));
 }
 
 /*
@@ -1921,7 +1771,7 @@ TEST_F(OCIContainer_L2Test, ContainerStopped_EventTest)
                 // as the mock does not trigger it
                 EXPECT_CALL(*p_dobbyProxyMock, listContainers())
                     .WillRepeatedly(::testing::Return(containerslist));
-                this->triggerStateChangeEvent(descriptor, containerID, IDobbyProxyEvents::ContainerState::Stopped);
+                this->triggerStateChangeEventWithStatus(descriptor, containerID, IDobbyProxyEvents::ContainerState::Stopped, 0);
 
                 signalled = notify.WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STOPPED);
                 EXPECT_TRUE(signalled & ON_CONTAINER_STOPPED);
@@ -2047,7 +1897,7 @@ TEST_F(OCIContainer_L2Test, ContainerStoppedEvent_JSONRPC)
         &async_handler);
     EXPECT_EQ(Core::ERROR_NONE, status);
 
-    message = "{\"containerId\":\"com.bskyb.epgui\",\"name\":\"com.bskyb.epgui\"}";
+    message = "{\"containerId\":\"com.bskyb.epgui\",\"name\":\"com.bskyb.epgui\",\"exitCode\":0}";
     expected_status.FromString(message);
     EXPECT_CALL(async_handler, onContainerStopped(MatchRequestStatus(expected_status)))
         .WillOnce(Invoke(this, &OCIContainer_L2Test::onContainerStopped));
@@ -2057,7 +1907,7 @@ TEST_F(OCIContainer_L2Test, ContainerStoppedEvent_JSONRPC)
     // as the mock does not trigger it
     EXPECT_CALL(*p_dobbyProxyMock, listContainers())
         .WillRepeatedly(::testing::Return(containerslist));
-    this->triggerStateChangeEvent(descriptor, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Stopped);
+    this->triggerStateChangeEventWithStatus(descriptor, "com.bskyb.epgui", IDobbyProxyEvents::ContainerState::Stopped, 0);
 
     signalled = WaitForRequestStatus(EVNT_TIMEOUT, ON_CONTAINER_STOPPED);
     EXPECT_TRUE(signalled & ON_CONTAINER_STOPPED);
